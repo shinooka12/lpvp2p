@@ -13,7 +13,7 @@
 #define CHILD_MAX 2
 #define BUFSIZE 256
 #define THREAD_NUM 2
-#define TARGET "127.0.0.1"
+#define TARGET "192.168.1"
 
 #define CON "CONNECT"
 #define CONACK "CONNECT ACK"
@@ -96,6 +96,12 @@ int start_p2p(){
 
 	memset(recvbuf,0,sizeof(recvbuf));
 
+	if(node.parent_flag == -1){
+	    printf("[MAIN THREAD] send connect packet\n");
+	    pthread_create(&worker,NULL,(void *)connect_parent,(void *)&new_s);
+	    printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
+	}
+
 	//recvfromでUDPソケットからデータを受信
 	addrlen = sizeof(senderinfo);
 	if(first_connect != -1){
@@ -107,11 +113,6 @@ int start_p2p(){
 	new_s.s = sock;
 	new_s.senderinfo = senderinfo;
 
-	if(node.parent_flag == -1){
-	    printf("[MAIN THREAD] send connect packet\n");
-	    pthread_create(&worker,NULL,(void *)connect_parent,(void *)&new_s);
-	    printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
-	}
 
 	if(strcmp(recvbuf,CON) == 0){
 	    printf("[MAIN THREAD] recieve packet\n");
@@ -121,9 +122,9 @@ int start_p2p(){
 	}
 
 
-	    //pthread_detach(worker);
-	pthread_join(worker,NULL);
-	printf("[MAIN THREAD] JOIN [%u]\n",worker);
+	pthread_detach(worker);
+	//pthread_join(worker,NULL);
+	//printf("[MAIN THREAD] JOIN [%u]\n",worker);
 	printf("PARENT: %s  CHILD: %s %s\n",node.parent[0],node.child[0],node.child[1]);
 
     }
@@ -207,6 +208,22 @@ void connect_parent(sock_t *new_s){
     addr.sin_port = htons(SERVICE_PORT);
     inet_pton(AF_INET,target_ip,&addr.sin_addr.s_addr);
 
+    for(i=0;i<PARENT_MAX;i++){
+	if(strcmp(node.parent[i],"nothing") == 0){
+	    flag = -1;
+	}else{
+	    flag = 0;
+	}
+    }
+
+    if(flag != 0){
+
+	printf("CONNECT MAX PARENT. CANCEL CONNECT\n");
+	node.parent_flag = 0;
+	return;
+    }
+
+
     //sendtoでCONNECTを送信
     sprintf(sendbuf,CON);
     n = sendto(sock,sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
@@ -235,10 +252,6 @@ void connect_parent(sock_t *new_s){
 	printf("RECIEVE UNKNOWN COMMAND[IP:%s]",target_ip);
     }
 
-    if(flag != 0){
-
-	node.parent_flag = 0;
-    }
 
 
 }
