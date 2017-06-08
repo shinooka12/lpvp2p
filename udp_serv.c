@@ -156,12 +156,23 @@ void connect_recv(sock_t *new_s){
     inet_ntop(AF_INET,&senderinfo.sin_addr,senderstr,sizeof(senderstr));
     //回線速度が自分の方が早いとき
     //まだ分岐しない
+    for(i=0;i<CHILD_MAX;i++){
+	if(strcmp(node.child[i],senderstr) != 0){
+	    sprintf(sendbuf,CONREF);
+	    sendto(sock,sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&senderinfo,sizeof(senderinfo));
+	    return;
+
+	}
+    }
+
     flag = -1;
     for(i=0;i<CHILD_MAX;i++){
 	if(strcmp(node.child[i],"nothing") == 0 && flag != 0){
-	    sprintf(node.child[i],senderstr);
-	    flag = 0;
+		sprintf(node.child[i],senderstr);
+		flag = 0;
 	}
+
+	if(strcmp(node.child[i],senderstr) == 0)
     }
 
     if(flag == 0){
