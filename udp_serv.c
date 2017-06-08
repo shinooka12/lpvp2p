@@ -13,7 +13,7 @@
 #define CHILD_MAX 2
 #define BUFSIZE 256
 #define THREAD_NUM 2
-#define TARGET "192.168.1"
+#define TARGET "192.168.1.2"
 
 #define CON "CONNECT"
 #define CONACK "CONNECT ACK"
@@ -81,6 +81,7 @@ int start_p2p(){
     char senderstr[BUFSIZE];
     int n;
     int i;
+    int flag;
 
     sock = socket(AF_INET,SOCK_DGRAM,0);
 
@@ -89,12 +90,14 @@ int start_p2p(){
     addr.sin_addr.s_addr = INADDR_ANY;
 
     bind(sock,(struct sockaddr *)&addr,sizeof(addr));
+    flag = -1;
 
     while(1){
 
 	i=0;
 
 	memset(recvbuf,0,sizeof(recvbuf));
+	printf("PARENT: %s  CHILD: %s %s\n",node.parent[0],node.child[0],node.child[1]);
 
 	if(node.parent_flag == -1){
 	    printf("[MAIN THREAD] send connect packet\n");
@@ -104,7 +107,7 @@ int start_p2p(){
 
 	//recvfromでUDPソケットからデータを受信
 	addrlen = sizeof(senderinfo);
-	if(first_connect != -1){
+	if(flag != -1){
 	    n = recvfrom(sock,recvbuf,sizeof(recvbuf)-1,0,(struct sockaddr *)&senderinfo,&addrlen);
 	}
 	//送信元の情報を出力
@@ -122,10 +125,12 @@ int start_p2p(){
 	}
 
 
+	if(flag == -1){
 	pthread_detach(worker);
-	//pthread_join(worker,NULL);
-	//printf("[MAIN THREAD] JOIN [%u]\n",worker);
-	printf("PARENT: %s  CHILD: %s %s\n",node.parent[0],node.child[0],node.child[1]);
+	}else{
+	pthread_join(worker,NULL);
+	printf("[MAIN THREAD] JOIN [%u]\n",worker);
+	}
 
     }
 
