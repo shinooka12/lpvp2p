@@ -208,15 +208,14 @@ void connect_parent(sock_t *new_s){
     addr.sin_port = htons(SERVICE_PORT);
     inet_pton(AF_INET,target_ip,&addr.sin_addr.s_addr);
 
+    flag = 0;
     for(i=0;i<PARENT_MAX;i++){
 	if(strcmp(node.parent[i],"nothing") == 0){
 	    flag = -1;
-	}else{
-	    flag = 0;
 	}
     }
 
-    if(flag != 0){
+    if(flag == 0){
 
 	printf("CONNECT MAX PARENT. CANCEL CONNECT\n");
 	node.parent_flag = 0;
