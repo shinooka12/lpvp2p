@@ -113,16 +113,17 @@ int start_p2p(){
 	    printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
 	}
 
-	printf("[MAIN THREAD] recieve packet\n");
-	printf("recvfrom: %s  port: %d  recv command: %s\n",senderstr,ntohs(senderinfo.sin_port),recvbuf);
-	pthread_create(&worker,NULL,(void *)connect_recv,(void *)&new_s);
-	printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
-	i++;
+	if(strcmp(recvbuf,CON) == 0){
+	    printf("[MAIN THREAD] recieve packet\n");
+	    printf("recvfrom: %s  port: %d  recv command: %s\n",senderstr,ntohs(senderinfo.sin_port),recvbuf);
+	    pthread_create(&worker,NULL,(void *)connect_recv,(void *)&new_s);
+	    printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
+	}
 
 
-	    pthread_detach(worker);
-	//pthread_join(worker,NULL);
-	//printf("[MAIN THREAD] JOIN [%u]\n",worker);
+	    //pthread_detach(worker);
+	pthread_join(worker,NULL);
+	printf("[MAIN THREAD] JOIN [%u]\n",worker);
 	printf("PARENT: %s  CHILD: %s %s\n",node.parent[0],node.child[0],node.child[1]);
 
     }
@@ -197,6 +198,7 @@ void connect_parent(sock_t *new_s){
 	strcpy(target_ip,TARGET);
 	first_connect = 0;
     }else{
+	memset(target_ip,0,sizeof(target_ip));
 	strcpy(target_ip,TARGET);
 	//strcpy(target_ip,node_list[0].node_ip);
     }
