@@ -127,6 +127,7 @@ int start_p2p(){
 
 	if(flag == -1){
 	pthread_detach(worker);
+	flag = 0;
 	}else{
 	pthread_join(worker,NULL);
 	printf("[MAIN THREAD] JOIN [%u]\n",worker);
