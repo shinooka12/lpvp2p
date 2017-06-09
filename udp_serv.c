@@ -266,6 +266,8 @@ void connect_parent(sock_t *new_s){
 
 	    printf("CONNECT MAX PARENT. CANCEL CONNECT\n");
 	    node.parent_flag = 0;
+	    timer_delete(tid);
+	    sigaction(SIGALRM,&oldact,NULL);
 	    return;
 	}
 
