@@ -44,7 +44,7 @@ void reset_node();
 int start_p2p();
 void connect_recv(sock_t *);
 void connect_parent(sock_t *new_s);
-void timer_handler(int );
+void print_connect_node();
 
 
 int main(){
@@ -188,7 +188,7 @@ void connect_recv(sock_t *new_s){
 	printf("sendto: %s  port: %d  send command: %s\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
     }
 
-	printf("PARENT: %s  CHILD: %s %s\n",node.parent[0],node.child[0],node.child[1]);
+	print_connect_node();
 
 }
 
@@ -298,11 +298,26 @@ void connect_parent(sock_t *new_s){
 	    }
 	}
 
-	printf("end recieve\n");
-	printf("PARENT: %s  CHILD: %s %s\n",node.parent[0],node.child[0],node.child[1]);
+	print_connect_node();
 	sleep(5);
 
     }
 
 }
 
+void print_connect_node(){
+
+    int i;
+
+    printf("PARENT: ");
+    for(i=0;i<PARENT_MAX;i++){
+	printf("%s ",node.parent[i]);
+    }
+    printf("CHILD: ");
+    for(i=0;i<CHILD_MAX;i++){
+	printf("%s ",node.child[i]);
+
+    }
+    printf("\n");
+
+}
