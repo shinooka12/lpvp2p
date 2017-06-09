@@ -277,9 +277,11 @@ void connect_parent(sock_t *new_s){
 	n = sendto(sock,sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
 	if(n < 1){
 	    perror("sendto");
+	    timer_delete(tid);
+	    sigaction(SIGALRM,&oldact,NULL);
 	    return;
 	}
-	printf("send CONNECT [IP:%s]",target_ip);
+	printf("send CONNECT [IP:%s]\n",target_ip);
 
 
 	//返信待ち
@@ -287,11 +289,13 @@ void connect_parent(sock_t *new_s){
 	senderinfolen = sizeof(senderinfo);
 	printf("wait reply from %s\n",target_ip);
 	recvfrom(sock,recvbuf,sizeof(recvbuf),0,(struct sockaddr *)&senderinfo,&senderinfolen);
-	printf("\nconnect reply [IP:%s]: %s\n",target_ip,recvbuf);
+	printf("end recieve\n");
 
 	//CONNECT ACKの時は親のリストに追加
 	if(strcmp(recvbuf,CONACK) == 0){
 	    flag = -1;
+
+	    printf("\nCONACK receive [IP:%s]\n",target_ip);
 	    for(i=0;i<PARENT_MAX;i++){
 		if(strcmp(node.parent[i],"nothing") == 0 && flag != 0){
 		    sprintf(node.parent[i],target_ip);
