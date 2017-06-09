@@ -83,6 +83,11 @@ int start_p2p(){
     int n;
     int flag;
 
+    printf("[MAIN THREAD] connect parent\n");
+    pthread_create(&worker,NULL,(void *)connect_parent,(void *)&new_s);
+    printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
+
+
     sock = socket(AF_INET,SOCK_DGRAM,0);
 
     addr.sin_family = AF_INET;
@@ -91,9 +96,7 @@ int start_p2p(){
 
     bind(sock,(struct sockaddr *)&addr,sizeof(addr));
     flag = -1;
-    printf("[MAIN THREAD] connect parent\n");
-    pthread_create(&worker,NULL,(void *)connect_parent,(void *)&new_s);
-    printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
+
 
     while(1){
 
@@ -208,10 +211,8 @@ void connect_parent(sock_t *new_s){
 
     sock = socket(AF_INET,SOCK_DGRAM,0);
 
-
-
-    //宛先のIPやポート番号格納
-
+    tv.tv_sec = 3;
+    tv.tv_usec = 0;
 
     while(1){
 
@@ -221,29 +222,14 @@ void connect_parent(sock_t *new_s){
 	}else{
 	    memset(target_ip,0,sizeof(target_ip));
 	    strcpy(target_ip,TARGET);
+	    tv.tv_sec = 10;
+	    tv.tv_usec = 0;
 	}
 
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(SERVICE_PORT);
 	inet_pton(AF_INET,target_ip,&addr.sin_addr.s_addr);
 	bind(sock,(struct sockaddr *)&addr,sizeof(addr));
-
-	//タイマ割り込みを発生されるための処理
-	FD_ZERO(&readfds);
-	FD_SET(sock,&readfds);
-
-	tv.tv_sec = 10;
-	tv.tv_usec = 0;
-
-	maxfd = sock;
-
-	memcpy(&fds,&readfds,sizeof(fd_set));
-	m = select(maxfd+1,&fds,NULL,NULL,&tv);
-
-	if(m == 0){
-	    printf("CONNECT PARENT session time out\n");
-	}
-
 
 	//親がいなければflag=-1となり接続できる 親がいる場合はflag=0なのでreturnされる
 	flag = 0;
@@ -267,6 +253,19 @@ void connect_parent(sock_t *new_s){
 	if(n < 1){
 	    perror("sendto");
 	    return;
+	}
+
+
+	//タイマ割り込みを発生されるための処理
+	FD_ZERO(&readfds);
+	FD_SET(sock,&readfds);
+	maxfd = sock;
+
+	memcpy(&fds,&readfds,sizeof(fd_set));
+	m = select(maxfd+1,&fds,NULL,NULL,&tv);
+
+	if(m == 0){
+	    printf("CONNECT PARENT session time out\n");
 	}
 
 
