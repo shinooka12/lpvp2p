@@ -6,6 +6,9 @@
 #include<netinet/in.h>
 #include<arpa/inet.h>
 #include<pthread.h>
+#include<signal.h>
+#include<time.h>
+#include<unistd.h>
 
 #define KNOWN_MAX 2
 #define SERVICE_PORT 12345
@@ -43,6 +46,7 @@ void reset_node();
 int start_p2p();
 void connect_recv(sock_t *);
 void connect_parent(sock_t *new_s);
+void timer_handler(int );
 
 
 int main(){
@@ -91,6 +95,9 @@ int start_p2p(){
 
     bind(sock,(struct sockaddr *)&addr,sizeof(addr));
     flag = -1;
+    printf("[MAIN THREAD] send connect packet\n");
+    pthread_create(&worker,NULL,(void *)connect_parent,(void *)&new_s);
+    printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
 
     while(1){
 
@@ -99,17 +106,12 @@ int start_p2p(){
 	memset(recvbuf,0,sizeof(recvbuf));
 	printf("PARENT: %s  CHILD: %s %s\n",node.parent[0],node.child[0],node.child[1]);
 
-	if(node.parent_flag == -1){
-	    printf("[MAIN THREAD] send connect packet\n");
-	    pthread_create(&worker,NULL,(void *)connect_parent,(void *)&new_s);
-	    printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
-	}
 
 	//recvfromでUDPソケットからデータを受信
 	addrlen = sizeof(senderinfo);
-	if(flag != -1){
-	    n = recvfrom(sock,recvbuf,sizeof(recvbuf)-1,0,(struct sockaddr *)&senderinfo,&addrlen);
-	}
+	n = recvfrom(sock,recvbuf,sizeof(recvbuf)-1,0,(struct sockaddr *)&senderinfo,&addrlen);
+
+
 	//送信元の情報を出力
 	inet_ntop(AF_INET,&senderinfo.sin_addr,senderstr,sizeof(senderstr));
 
@@ -125,13 +127,7 @@ int start_p2p(){
 	}
 
 
-	if(flag == -1){
 	pthread_detach(worker);
-	flag = 0;
-	}else{
-	pthread_join(worker,NULL);
-	printf("[MAIN THREAD] JOIN [%u]\n",worker);
-	}
 
     }
 
@@ -212,62 +208,104 @@ void connect_parent(sock_t *new_s){
 
     sock = socket(AF_INET,SOCK_DGRAM,0);
 
-    if(first_connect == -1){
-	strcpy(target_ip,TARGET);
-	first_connect = 0;
-    }else{
-	memset(target_ip,0,sizeof(target_ip));
-	strcpy(target_ip,TARGET);
-	//strcpy(target_ip,node_list[0].node_ip);
+    //タイマ割り込みを発生されるための処理
+    struct sigaction act,oldact;
+    timer_t tid;
+    struct itimerspec itval;
+
+    memset(&act,0,sizeof(struct sigaction));
+    memset(&oldact,0,sizeof(struct sigaction));
+
+    act.sa_handler = timer_handler;
+    act.sa_flags = SA_RESTART;
+    if(sigaction(SIGALRM,&act,&oldact) < 0){
+	perror("sigaction()");
+	return;
     }
 
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(SERVICE_PORT);
-    inet_pton(AF_INET,target_ip,&addr.sin_addr.s_addr);
+    itval.it_value.tv_sec = 10;	//10 秒
+    itval.it_value.tv_nsec = 0;	
+    itval.it_interval.tv_sec = 10; //２回め以降の秒数
+    itval.it_interval.tv_nsec = 0;
 
-    flag = 0;
-    for(i=0;i<PARENT_MAX;i++){
-	if(strcmp(node.parent[i],"nothing") == 0){
-	    flag = -1;
+    if(timer_create(CLOCK_REALTIME,NULL,&tid) < 0){
+	perror("timer_create");
+	return;
+    }
+
+    if(timer_settime(tid,0,&itval,NULL) < 0){
+	perror("timer_settime");
+	return;
+    }
+
+    //end timer
+
+    while(1){
+
+	if(first_connect == -1){
+	    strcpy(target_ip,TARGET);
+	    first_connect = 0;
+	}else{
+	    memset(target_ip,0,sizeof(target_ip));
+	    strcpy(target_ip,TARGET);
 	}
-    }
 
-    if(flag == 0){
+	//宛先のIPやポート番号格納
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(SERVICE_PORT);
+	inet_pton(AF_INET,target_ip,&addr.sin_addr.s_addr);
 
-	printf("CONNECT MAX PARENT. CANCEL CONNECT\n");
-	node.parent_flag = 0;
-	return;
-    }
-
-
-    //sendtoでCONNECTを送信
-    sprintf(sendbuf,CON);
-    n = sendto(sock,sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
-    if(n < 1){
-	perror("sendto");
-	return;
-    }
-
-    memset(recvbuf,0,sizeof(recvbuf));
-    senderinfolen = sizeof(senderinfo);
-    recvfrom(sock,recvbuf,sizeof(recvbuf),0,(struct sockaddr *)&senderinfo,&senderinfolen);
-    printf("\nconnect reply : %s\n",recvbuf);
-
-    //CONNECT ACKの時は親のリストに追加
-    if(strcmp(recvbuf,CONACK) == 0){
-	flag = -1;
+	//親がいなければflag=-1となり接続できる 親がいる場合はflag=0なのでreturnされる
+	flag = 0;
 	for(i=0;i<PARENT_MAX;i++){
-	    if(strcmp(node.parent[i],"nothing") == 0 && flag != 0){
-		sprintf(node.parent[i],target_ip);
-		flag = 0;
+	    if(strcmp(node.parent[i],"nothing") == 0){
+		flag = -1;
 	    }
 	}
-    }else if(strcmp(recvbuf,CONREF) == 0){
-	printf("CONNECT REFUSE[IP:%s]  plz connect other node\n",target_ip);
-    }else{
-	printf("RECIEVE UNKNOWN COMMAND[IP:%s]",target_ip);
+	if(flag == 0){
+
+	    printf("CONNECT MAX PARENT. CANCEL CONNECT\n");
+	    node.parent_flag = 0;
+	    return;
+	}
+
+
+	//sendtoでCONNECTを送信
+	sprintf(sendbuf,CON);
+	n = sendto(sock,sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
+	if(n < 1){
+	    perror("sendto");
+	    return;
+	}
+
+
+	//返信待ち
+	memset(recvbuf,0,sizeof(recvbuf));
+	senderinfolen = sizeof(senderinfo);
+	recvfrom(sock,recvbuf,sizeof(recvbuf),0,(struct sockaddr *)&senderinfo,&senderinfolen);
+	printf("\nconnect reply : %s\n",recvbuf);
+
+	//CONNECT ACKの時は親のリストに追加
+	if(strcmp(recvbuf,CONACK) == 0){
+	    flag = -1;
+	    for(i=0;i<PARENT_MAX;i++){
+		if(strcmp(node.parent[i],"nothing") == 0 && flag != 0){
+		    sprintf(node.parent[i],target_ip);
+		    flag = 0;
+		}
+	    }
+	}else if(strcmp(recvbuf,CONREF) == 0){
+	    printf("CONNECT REFUSE[IP:%s]  plz connect other node\n",target_ip);
+	}else{
+	    printf("RECIEVE UNKNOWN COMMAND[IP:%s]",target_ip);
+	}
+
+
+
     }
 
+}
 
-
+void timer_handler(int signum){
+    printf("called timer handler:: session time out\n");
 }

@@ -1,0 +1,5 @@
+コンパイル
+-l pthread　スレッド処理で必要
+-lrt タイマ処理で必要
+
+gcc -o serv udp_serv.c -l pthread -lrt
