@@ -18,6 +18,7 @@
 #define CON "CONNECT"
 #define CONACK "CONNECT ACK"
 #define CONREF "CONNECT REFUSE"
+#define ACK "ACK"
 
 
 typedef struct{
@@ -283,6 +284,10 @@ void connect_parent(sock_t *new_s){
 		for(i=0;i<PARENT_MAX;i++){
 		    if(strcmp(node.parent[i],"nothing") == 0 && flag != 0){
 			sprintf(node.parent[i],target_ip);
+
+			sprintf(sendbuf,ACK);
+			n = sendto(sock,sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
+			printf("\nsend ACK [IP:%s]\n",target_ip);
 			flag = 0;
 		    }
 		}
