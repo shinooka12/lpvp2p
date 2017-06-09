@@ -211,9 +211,6 @@ void connect_parent(sock_t *new_s){
 
     sock = socket(AF_INET,SOCK_DGRAM,0);
 
-    tv.tv_sec = 10;
-    tv.tv_usec = 0;
-
     while(1){
 
 	if(first_connect == -1){
@@ -257,6 +254,8 @@ void connect_parent(sock_t *new_s){
 	//タイマ割り込みを発生されるための処理
 	FD_ZERO(&readfds);
 	FD_SET(sock,&readfds);
+	tv.tv_sec = 10;
+	tv.tv_usec = 0;
 	maxfd = sock;
 
 	memcpy(&fds,&readfds,sizeof(fd_set));
