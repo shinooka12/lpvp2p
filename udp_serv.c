@@ -295,6 +295,7 @@ void connect_parent(sock_t *new_s){
 
 	printf("end recieve\n");
 	printf("PARENT: %s  CHILD: %s %s\n",node.parent[0],node.child[0],node.child[1]);
+	sleep(5);
 
     }
 
