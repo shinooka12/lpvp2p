@@ -277,13 +277,15 @@ void connect_parent(sock_t *new_s){
 	    perror("sendto");
 	    return;
 	}
+	printf("send CONNECT [IP:%s]",target_ip);
 
 
 	//返信待ち
 	memset(recvbuf,0,sizeof(recvbuf));
 	senderinfolen = sizeof(senderinfo);
+	printf("wait reply from %s\n",target_ip);
 	recvfrom(sock,recvbuf,sizeof(recvbuf),0,(struct sockaddr *)&senderinfo,&senderinfolen);
-	printf("\nconnect reply : %s\n",recvbuf);
+	printf("\nconnect reply [IP:%s]: %s\n",target_ip,recvbuf);
 
 	//CONNECT ACKの時は親のリストに追加
 	if(strcmp(recvbuf,CONACK) == 0){
