@@ -91,14 +91,13 @@ int start_p2p(){
 
     bind(sock,(struct sockaddr *)&addr,sizeof(addr));
     flag = -1;
-    printf("[MAIN THREAD] send connect packet\n");
+    printf("[MAIN THREAD] connect parent\n");
     pthread_create(&worker,NULL,(void *)connect_parent,(void *)&new_s);
     printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
 
     while(1){
 
 	memset(recvbuf,0,sizeof(recvbuf));
-	printf("PARENT: %s  CHILD: %s %s\n",node.parent[0],node.child[0],node.child[1]);
 
 
 	//recvfromでUDPソケットからデータを受信
@@ -183,6 +182,8 @@ void connect_recv(sock_t *new_s){
 	printf("sendto: %s  port: %d  send command: %s\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
     }
 
+	printf("PARENT: %s  CHILD: %s %s\n",node.parent[0],node.child[0],node.child[1]);
+
 }
 
 
@@ -240,7 +241,7 @@ void connect_parent(sock_t *new_s){
 	m = select(maxfd+1,&fds,NULL,NULL,&tv);
 
 	if(m == 0){
-	    printf("session time out\n");
+	    printf("CONNECT PARENT session time out\n");
 	}
 
 
@@ -262,11 +263,11 @@ void connect_parent(sock_t *new_s){
 	//sendtoでCONNECTを送信
 	sprintf(sendbuf,CON);
 	n = sendto(sock,sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
+	printf("\nsend CONNECT [IP:%s]\n",target_ip);
 	if(n < 1){
 	    perror("sendto");
 	    return;
 	}
-	printf("send CONNECT [IP:%s]\n",target_ip);
 
 
 	//返信待ち
@@ -295,6 +296,7 @@ void connect_parent(sock_t *new_s){
 	}
 
 	printf("end recieve\n");
+	printf("PARENT: %s  CHILD: %s %s\n",node.parent[0],node.child[0],node.child[1]);
 
     }
 
