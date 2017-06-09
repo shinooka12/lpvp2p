@@ -211,7 +211,7 @@ void connect_parent(sock_t *new_s){
 
     sock = socket(AF_INET,SOCK_DGRAM,0);
 
-    tv.tv_sec = 3;
+    tv.tv_sec = 10;
     tv.tv_usec = 0;
 
     while(1){
@@ -222,8 +222,6 @@ void connect_parent(sock_t *new_s){
 	}else{
 	    memset(target_ip,0,sizeof(target_ip));
 	    strcpy(target_ip,TARGET);
-	    tv.tv_sec = 10;
-	    tv.tv_usec = 0;
 	}
 
 	addr.sin_family = AF_INET;
@@ -262,6 +260,7 @@ void connect_parent(sock_t *new_s){
 	maxfd = sock;
 
 	memcpy(&fds,&readfds,sizeof(fd_set));
+	printf("wait reply from %s\n",target_ip);
 	m = select(maxfd+1,&fds,NULL,NULL,&tv);
 
 	if(m == 0){
@@ -272,7 +271,6 @@ void connect_parent(sock_t *new_s){
 	//返信待ち
 	memset(recvbuf,0,sizeof(recvbuf));
 	senderinfolen = sizeof(senderinfo);
-	printf("wait reply from %s\n",target_ip);
 	if(FD_ISSET(sock,&fds)){
 	    recvfrom(sock,recvbuf,sizeof(recvbuf),0,(struct sockaddr *)&senderinfo,&senderinfolen);
 
