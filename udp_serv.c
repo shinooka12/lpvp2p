@@ -6,9 +6,6 @@
 #include<netinet/in.h>
 #include<arpa/inet.h>
 #include<pthread.h>
-#include<signal.h>
-#include<time.h>
-#include<unistd.h>
 
 #define KNOWN_MAX 2
 #define SERVICE_PORT 12345
@@ -84,7 +81,6 @@ int start_p2p(){
     char recvbuf[BUFSIZE];
     char senderstr[BUFSIZE];
     int n;
-    int i;
     int flag;
 
     sock = socket(AF_INET,SOCK_DGRAM,0);
@@ -100,8 +96,6 @@ int start_p2p(){
     printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
 
     while(1){
-
-	i=0;
 
 	memset(recvbuf,0,sizeof(recvbuf));
 	printf("PARENT: %s  CHILD: %s %s\n",node.parent[0],node.child[0],node.child[1]);
@@ -202,43 +196,21 @@ void connect_parent(sock_t *new_s){
     char target_ip[BUFSIZE];
     char sendbuf[BUFSIZE];
     char recvbuf[BUFSIZE];
-    int n;
     int i;
+    int n;
     int flag;
+    //タイマ割り込みを発生されるための変数
+    fd_set fds,readfds;
+    int maxfd;
+    int m;
+    struct timeval tv;
 
     sock = socket(AF_INET,SOCK_DGRAM,0);
 
-    //タイマ割り込みを発生されるための処理
-    struct sigaction act,oldact;
-    timer_t tid;
-    struct itimerspec itval;
 
-    memset(&act,0,sizeof(struct sigaction));
-    memset(&oldact,0,sizeof(struct sigaction));
 
-    act.sa_handler = timer_handler;
-    act.sa_flags = SA_RESTART;
-    if(sigaction(SIGALRM,&act,&oldact) < 0){
-	perror("sigaction()");
-	return;
-    }
+    //宛先のIPやポート番号格納
 
-    itval.it_value.tv_sec = 10;	//10 秒
-    itval.it_value.tv_nsec = 0;	
-    itval.it_interval.tv_sec = 10; //２回め以降の秒数
-    itval.it_interval.tv_nsec = 0;
-
-    if(timer_create(CLOCK_REALTIME,NULL,&tid) < 0){
-	perror("timer_create");
-	return;
-    }
-
-    if(timer_settime(tid,0,&itval,NULL) < 0){
-	perror("timer_settime");
-	return;
-    }
-
-    //end timer
 
     while(1){
 
@@ -250,10 +222,27 @@ void connect_parent(sock_t *new_s){
 	    strcpy(target_ip,TARGET);
 	}
 
-	//宛先のIPやポート番号格納
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(SERVICE_PORT);
 	inet_pton(AF_INET,target_ip,&addr.sin_addr.s_addr);
+	bind(sock,(struct sockaddr *)&addr,sizeof(addr));
+
+	//タイマ割り込みを発生されるための処理
+	FD_ZERO(&readfds);
+	FD_SET(sock,&readfds);
+
+	tv.tv_sec = 10;
+	tv.tv_usec = 0;
+
+	maxfd = sock;
+
+	memcpy(&fds,&readfds,sizeof(fd_set));
+	m = select(maxfd+1,&fds,NULL,NULL,&tv);
+
+	if(m == 0){
+	    printf("session time out\n");
+	}
+
 
 	//親がいなければflag=-1となり接続できる 親がいる場合はflag=0なのでreturnされる
 	flag = 0;
@@ -266,8 +255,6 @@ void connect_parent(sock_t *new_s){
 
 	    printf("CONNECT MAX PARENT. CANCEL CONNECT\n");
 	    node.parent_flag = 0;
-	    timer_delete(tid);
-	    sigaction(SIGALRM,&oldact,NULL);
 	    return;
 	}
 
@@ -277,8 +264,6 @@ void connect_parent(sock_t *new_s){
 	n = sendto(sock,sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
 	if(n < 1){
 	    perror("sendto");
-	    timer_delete(tid);
-	    sigaction(SIGALRM,&oldact,NULL);
 	    return;
 	}
 	printf("send CONNECT [IP:%s]\n",target_ip);
@@ -288,32 +273,30 @@ void connect_parent(sock_t *new_s){
 	memset(recvbuf,0,sizeof(recvbuf));
 	senderinfolen = sizeof(senderinfo);
 	printf("wait reply from %s\n",target_ip);
-	recvfrom(sock,recvbuf,sizeof(recvbuf),0,(struct sockaddr *)&senderinfo,&senderinfolen);
-	printf("end recieve\n");
+	if(FD_ISSET(sock,&fds)){
+	    recvfrom(sock,recvbuf,sizeof(recvbuf),0,(struct sockaddr *)&senderinfo,&senderinfolen);
 
-	//CONNECT ACKの時は親のリストに追加
-	if(strcmp(recvbuf,CONACK) == 0){
-	    flag = -1;
+	    //CONNECT ACKの時は親のリストに追加
+	    if(strcmp(recvbuf,CONACK) == 0){
+		flag = -1;
 
-	    printf("\nCONACK receive [IP:%s]\n",target_ip);
-	    for(i=0;i<PARENT_MAX;i++){
-		if(strcmp(node.parent[i],"nothing") == 0 && flag != 0){
-		    sprintf(node.parent[i],target_ip);
-		    flag = 0;
+		printf("\nCONACK receive [IP:%s]\n",target_ip);
+		for(i=0;i<PARENT_MAX;i++){
+		    if(strcmp(node.parent[i],"nothing") == 0 && flag != 0){
+			sprintf(node.parent[i],target_ip);
+			flag = 0;
+		    }
 		}
+	    }else if(strcmp(recvbuf,CONREF) == 0){
+		printf("CONNECT REFUSE[IP:%s]  plz connect other node\n",target_ip);
+	    }else{
+		printf("RECIEVE UNKNOWN COMMAND[IP:%s]",target_ip);
 	    }
-	}else if(strcmp(recvbuf,CONREF) == 0){
-	    printf("CONNECT REFUSE[IP:%s]  plz connect other node\n",target_ip);
-	}else{
-	    printf("RECIEVE UNKNOWN COMMAND[IP:%s]",target_ip);
 	}
 
-
+	printf("end recieve\n");
 
     }
 
 }
 
-void timer_handler(int signum){
-    printf("called timer handler:: session time out\n");
-}
