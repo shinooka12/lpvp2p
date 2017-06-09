@@ -152,6 +152,8 @@ void connect_recv(sock_t *new_s){
 	if(strcmp(node.child[i],senderstr) == 0){
 	    sprintf(sendbuf,CONREF);
 	    sendto(sock,sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&senderinfo,sizeof(senderinfo));
+	    //送信先の情報を出力
+	    printf("sendto: %s  port: %d  send command: %s\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
 	    return;
 
 	}
