@@ -36,9 +36,11 @@ typedef struct{
     char node_ip[BUFSIZE];
 }list_t;
 
+//グローバル変数
 node_t node;
 list_t node_list[KNOWN_MAX];
 int first_connect;
+int first_node;
 
 void reset_node();
 int start_p2p();
@@ -47,8 +49,17 @@ void connect_parent(sock_t *new_s);
 void print_connect_node();
 
 
-int main(){
+int main(int argc,char *argv[]){
 
+    int flag;
+
+    flag = atoi(argv[1]);
+    printf("%d\n",flag);
+
+    if(flag == 1){
+	first_node = 0;
+	printf("first\n");
+    }
     reset_node();
     start_p2p();
 
@@ -240,6 +251,7 @@ void connect_parent(sock_t *new_s){
 
 	    printf("CONNECT MAX PARENT. CANCEL CONNECT\n");
 	    node.parent_flag = 0;
+	    close(sock);
 	    return;
 	}
 
