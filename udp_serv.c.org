@@ -11,32 +11,25 @@
 #define SERVICE_PORT 12345
 #define PARENT_MAX 1
 #define CHILD_MAX 2
-#define MAX_KEY 10
 #define BUFSIZE 256
 #define THREAD_NUM 2
 #define TARGET "192.168.1.2"
 
-#define CON 0x00	//CONNECT
-#define CONACK 0x10	//CONNECT ACK
-#define CONREF 0x20	//CONNECT REFUSE
-#define ACK 0x30	//ACK
-#define PKEY 0x40	//PUSHKEY
+#define CON "CONNECT"
+#define CONACK "CONNECT ACK"
+#define CONREF "CONNECT REFUSE"
+#define ACK "ACK"
 
 
 typedef struct{
     int s;
-    struct sockaddr_in addr;
     struct sockaddr_in senderinfo;
-    char recvbuf[BUFSIZE];
 }sock_t;
 
 typedef struct{
     char parent[PARENT_MAX][BUFSIZE];
     char child[CHILD_MAX][BUFSIZE];
     int parent_flag;
-    char topic[BUFSIZE];
-    char data[BUFSIZE];
-    char known_key[MAX_KEY][BUFSIZE];
 }node_t;
 
 typedef struct{
@@ -51,16 +44,9 @@ int first_node;
 
 void reset_node();
 int start_p2p();
-//node管理プロセス node間のコネクション管理
-void node_connect_recv(sock_t *);
-void node_connect_parent(sock_t *new_s);
+void connect_recv(sock_t *);
+void connect_parent(sock_t *new_s);
 void print_connect_node();
-//query管理プロセス search query,keyの交換など
-void query_key_push(sock_t *);
-void query_key_receive(sock_t *);
-void print_key();
-//key管理プロセス 自ノードのkeyと他ノードのkeyの管理
-//タスク管理 dataの転送,中継
 
 
 int main(int argc,char *argv[]){
@@ -94,15 +80,6 @@ void reset_node(){
     }
     node.parent_flag = -1;
 
-    //topic
-    sprintf(node.topic,"room1/status");
-    //data
-    sprintf(node.data,"<temperature>23<humidity>40");
-
-
-    memset(node.known_key,0,sizeof(node.known_key));
-    strcpy(node.known_key[0],node.topic);
-
 }
 
 int start_p2p(){
@@ -119,7 +96,7 @@ int start_p2p(){
     int flag;
 
     printf("[MAIN THREAD] connect parent\n");
-    pthread_create(&worker,NULL,(void *)node_connect_parent,(void *)&new_s);
+    pthread_create(&worker,NULL,(void *)connect_parent,(void *)&new_s);
     printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
 
 
@@ -131,6 +108,7 @@ int start_p2p(){
 
     bind(sock,(struct sockaddr *)&addr,sizeof(addr));
     flag = -1;
+
 
     while(1){
 
@@ -146,27 +124,14 @@ int start_p2p(){
 	inet_ntop(AF_INET,&senderinfo.sin_addr,senderstr,sizeof(senderstr));
 
 	new_s.s = sock;
-	new_s.addr = addr;
 	new_s.senderinfo = senderinfo;
-	strcpy(new_s.recvbuf,recvbuf);
 
 
 	if(strcmp(recvbuf,CON) == 0){
 	    printf("[MAIN THREAD] recieve packet\n");
 	    printf("recvfrom: %s  port: %d  recv command: %s\n",senderstr,ntohs(senderinfo.sin_port),recvbuf);
-
-	    if(recvbuf[0] == CON){
-		pthread_create(&worker,NULL,(void *)node_connect_recv,(void *)&new_s);
-		printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
-	    }else if(recvbuf[0] == ACK){
-		printf("[ALL]recv ACK");
-	    }else if(recvbuf[0] == PKEY){
-		pthread_create(&worker,NULL,(void *)query_key_receive,(void *)&new_s);
-		printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
-	    }else{
-		printf("UNKNOWN COMMAND");
-	    }
-
+	    pthread_create(&worker,NULL,(void *)connect_recv,(void *)&new_s);
+	    printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
 	}
 
 
@@ -180,13 +145,13 @@ int start_p2p(){
 }
 
 
-void node_connect_recv(sock_t *new_s){
+void connect_recv(sock_t *new_s){
 
     int sock;
     int i;
     int flag;
     struct sockaddr_in senderinfo;
-    char sendbuf;
+    char sendbuf[BUFSIZE];
     char senderstr[BUFSIZE];
 
     sock = new_s->s;
@@ -197,10 +162,10 @@ void node_connect_recv(sock_t *new_s){
     //まだ分岐しない
     for(i=0;i<CHILD_MAX;i++){
 	if(strcmp(node.child[i],senderstr) == 0){
-	    sendbuf = CONREF;
-	    sendto(sock,&sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&senderinfo,sizeof(senderinfo));
+	    sprintf(sendbuf,CONREF);
+	    sendto(sock,sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&senderinfo,sizeof(senderinfo));
 	    //送信先の情報を出力
-	    printf("[NODE]sendto: %s  port: %d  send command: %s\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
+	    printf("sendto: %s  port: %d  send command: %s\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
 	    return;
 
 	}
@@ -219,19 +184,19 @@ void node_connect_recv(sock_t *new_s){
     if(flag == 0){
 
 	//UDPで返信
-	sendbuf=CONACK;
-	sendto(sock,&sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&senderinfo,sizeof(senderinfo));
+	sprintf(sendbuf,CONACK);
+	sendto(sock,sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&senderinfo,sizeof(senderinfo));
 
 	//送信先の情報を出力
-	printf("[NODE]sendto: %s  port: %d  send command: %s\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
+	printf("sendto: %s  port: %d  send command: %s\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
     }else{	//子ノードがいっぱいで接続できない
 	
 	//UDPで返信
-	sendbuf=CONREF;
-	sendto(sock,&sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&senderinfo,sizeof(senderinfo));
+	sprintf(sendbuf,CONREF);
+	sendto(sock,sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&senderinfo,sizeof(senderinfo));
 
 	//送信先の情報を出力
-	printf("[NODE]sendto: %s  port: %d  send command: %s\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
+	printf("sendto: %s  port: %d  send command: %s\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
     }
 
 	print_connect_node();
@@ -239,17 +204,15 @@ void node_connect_recv(sock_t *new_s){
 }
 
 
-void node_connect_parent(sock_t *new_s){
+void connect_parent(sock_t *new_s){
 
 
-    pthread_t worker;
     int sock;
-    sock_t new_s1;
     struct sockaddr_in addr;
     struct sockaddr_in senderinfo;
     socklen_t senderinfolen;
     char target_ip[BUFSIZE];
-    char sendbuf;
+    char sendbuf[BUFSIZE];
     char recvbuf[BUFSIZE];
     int i;
     int n;
@@ -286,7 +249,7 @@ void node_connect_parent(sock_t *new_s){
 	}
 	if(flag == 0){
 
-	    printf("[NODE]CONNECT MAX PARENT. CANCEL CONNECT\n");
+	    printf("CONNECT MAX PARENT. CANCEL CONNECT\n");
 	    node.parent_flag = 0;
 	    close(sock);
 	    return;
@@ -294,9 +257,9 @@ void node_connect_parent(sock_t *new_s){
 
 
 	//sendtoでCONNECTを送信
-	sendbuf=CON;
-	n = sendto(sock,&sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
-	printf("\n[NODE]send CONNECT [IP:%s]\n",target_ip);
+	sprintf(sendbuf,CON);
+	n = sendto(sock,sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
+	printf("\nsend CONNECT [IP:%s]\n",target_ip);
 	if(n < 1){
 	    perror("sendto");
 	    return;
@@ -306,16 +269,16 @@ void node_connect_parent(sock_t *new_s){
 	//タイマ割り込みを発生されるための処理
 	FD_ZERO(&readfds);
 	FD_SET(sock,&readfds);
-	tv.tv_sec = 10; //timeoutの時間
+	tv.tv_sec = 10;
 	tv.tv_usec = 0;
 	maxfd = sock;
 
 	memcpy(&fds,&readfds,sizeof(fd_set));
-	printf("[NODE]wait reply from %s\n",target_ip);
+	printf("wait reply from %s\n",target_ip);
 	m = select(maxfd+1,&fds,NULL,NULL,&tv);
 
 	if(m == 0){
-	    printf("[NDOE]CONNECT PARENT session time out\n");
+	    printf("CONNECT PARENT session time out\n");
 	}
 
 
@@ -326,38 +289,29 @@ void node_connect_parent(sock_t *new_s){
 	    recvfrom(sock,recvbuf,sizeof(recvbuf),0,(struct sockaddr *)&senderinfo,&senderinfolen);
 
 	    //CONNECT ACKの時は親のリストに追加
-	    if(recvbuf[0] == CONACK){
+	    if(strcmp(recvbuf,CONACK) == 0){
 		flag = -1;
 
-		printf("\n[NODE]CONACK receive [IP:%s]\n",target_ip);
+		printf("\nCONACK receive [IP:%s]\n",target_ip);
 		for(i=0;i<PARENT_MAX;i++){
 		    if(strcmp(node.parent[i],"nothing") == 0 && flag != 0){
 			sprintf(node.parent[i],target_ip);
 
-			sendbuf == ACK;
-			n = sendto(sock,&sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
-			printf("\n[NODE}send ACK [IP:%s]\n",target_ip);
+			sprintf(sendbuf,ACK);
+			n = sendto(sock,sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
+			printf("\nsend ACK [IP:%s]\n",target_ip);
 			flag = 0;
-
-			new_s1.s = sock;
-			new_s1.senderinfo = senderinfo;
-			new_s1.addr = addr;
-
-			printf("MAIN THREAD");
-			pthread_create(&worker,NULL,(void *)query_key_push,(void *)&new_s1);
-			printf("MAIN THREAD");
 		    }
 		}
-	    }else if(recvbuf[0] == CONREF){
-		printf("[NODE]CONNECT REFUSE[IP:%s]  plz connect other node\n",target_ip);
+	    }else if(strcmp(recvbuf,CONREF) == 0){
+		printf("CONNECT REFUSE[IP:%s]  plz connect other node\n",target_ip);
 	    }else{
-		printf("[NODE]RECIEVE UNKNOWN COMMAND[IP:%s]",target_ip);
+		printf("RECIEVE UNKNOWN COMMAND[IP:%s]",target_ip);
 	    }
 	}
 
 	print_connect_node();
-	pthread_detach(worker);
-	sleep(10); //Dosにならないようsleep
+	sleep(5);
 
     }
 
@@ -379,106 +333,3 @@ void print_connect_node(){
     printf("\n");
 
 }
-
-void query_key_push(sock_t *new_s){
-
-    int sock;
-    struct sockaddr_in addr;
-    struct sockaddr_in senderinfo;
-    char sendbuf[BUFSIZE];
-    char head;
-    char all_key[BUFSIZE];
-    int i,n;
-
-    sock = new_s->s;
-    addr = new_s->addr;
-    senderinfo = new_s->senderinfo;
-    head = PKEY;
-
-    for(i=0;i<MAX_KEY;i++){
-
-	if(node.known_key[i] == 0){
-	    continue;
-	}
-
-	sprintf(sendbuf,"%c%s",head,node.known_key[i]);
-	n = sendto(sock,sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
-	if(n < 1){
-	    perror("sendto");
-	    return;
-	}
-    }
-    
-
-}
-
-void query_key_receive(sock_t *new_s){
-
-    int sock;
-    int i;
-    int flag;
-    struct sockaddr_in addr;
-    struct sockaddr_in senderinfo;
-    char sendbuf;
-    char senderstr[BUFSIZE];
-    char recvbuf[BUFSIZE];
-    char buf[BUFSIZE];
-    int n;
-
-    sock = new_s->s;
-    addr = new_s->addr;
-    senderinfo = new_s->senderinfo;
-    strcpy(recvbuf,new_s->recvbuf);
-
-    inet_ntop(AF_INET,&senderinfo.sin_addr,senderstr,sizeof(senderstr));
-
-    //headerの削除
-    for(i=1;i<sizeof(BUFSIZE);i++){
-	buf[i-1] = recvbuf[i];
-    }
-
-    for(i=0;i<MAX_KEY;i++){
-	if(node.known_key[i] != 0){
-	    continue;
-	}else{
-	    strcpy(node.known_key[i],buf);
-	    break;
-	}
-    }
-
-    sendbuf = ACK;
-    n = sendto(sock,&sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
-    if(n < 1){
-	perror("sendto");
-	return;
-    }
-
-    print_key();
-
-}
-
-void print_key(){
-
-    int i;
-
-    printf("*******PRINT KEY*********");
-    for(i=0;i<MAX_KEY;i++){
-	if(node.known_key[i] == 0){
-	    continue;
-	}else{
-	    printf("KEY[%d] : %s\n",i,node.known_key[i]);
-	}
-    }
-
-}
-
-
-
-
-
-
-
-
-
-
-
