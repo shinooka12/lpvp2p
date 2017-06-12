@@ -334,9 +334,8 @@ void node_connect_parent(sock_t *new_s){
 			new_s1.senderinfo = senderinfo;
 			new_s1.addr = addr;
 
-			printf("MAIN THREAD");
+			printf("[QUERY SESSION START]");
 			pthread_create(&worker,NULL,(void *)query_key_push,(void *)&new_s1);
-			printf("MAIN THREAD");
 		    }
 		}
 	    }else if(recvbuf[0] == CONREF){
