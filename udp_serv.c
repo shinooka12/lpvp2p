@@ -286,7 +286,7 @@ void node_connect_parent(sock_t *new_s){
 
 	//sendtoでCONNECTを送信
 	sendbuf=CON;
-	n = sendto(sock,&sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
+	n = sendto(sock,&sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&addr,sizeof(addr));
 	printf("\n[NODE]send CONNECT [IP:%s]\n",target_ip);
 	if(n < 1){
 	    perror("sendto");
@@ -393,7 +393,7 @@ void query_key_push(sock_t *new_s){
 	}else{
 
 	    sprintf(sendbuf,"%c%s",head,node.known_key[i]);
-	    n = sendto(sock,sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
+	    n = sendto(sock,sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&addr,sizeof(addr));
 	    if(n < 1){
 		perror("sendto");
 		return;
@@ -439,7 +439,7 @@ void query_key_receive(sock_t *new_s){
     }
 
     sendbuf = ACK;
-    n = sendto(sock,&sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
+    n = sendto(sock,&sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&addr,sizeof(addr));
     if(n < 1){
 	perror("sendto");
 	return;
