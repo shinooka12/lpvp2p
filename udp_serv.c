@@ -91,8 +91,9 @@ void reset_node(){
     //data
     sprintf(node.data,"<temperature>23<humidity>40");
 
-
-    memset(node.known_key,0,sizeof(node.known_key));
+    for(i=0;i<MAX_KEY;i++){
+	node.known_key[i][0]=0x00;
+    }
     strcpy(node.known_key[0],node.topic);
 
 }
@@ -143,18 +144,18 @@ int start_p2p(){
 	strcpy(new_s.recvbuf,recvbuf);
 
 	printf("[MAIN THREAD] recieve packet\n");
-	printf("recvfrom: %s  port: %d  recv command: %s\n",senderstr,ntohs(senderinfo.sin_port),recvbuf);
+	printf("recvfrom: %s  port: %d  recv command: %x data: %s\n",senderstr,ntohs(senderinfo.sin_port),recvbuf[0],recvbuf);
 
 	if(recvbuf[0] == CON){
 	    pthread_create(&worker,NULL,(void *)node_connect_recv,(void *)&new_s);
 	    printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
 	}else if(recvbuf[0] == ACK){
-	    printf("[ALL]recv ACK");
+	    printf("[ALL]recv ACK\n");
 	}else if(recvbuf[0] == PKEY){
 	    pthread_create(&worker,NULL,(void *)query_key_receive,(void *)&new_s);
 	    printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
 	}else{
-	    printf("UNKNOWN COMMAND");
+	    printf("UNKNOWN COMMAND\n");
 	}
 
 
@@ -190,7 +191,7 @@ void node_connect_recv(sock_t *new_s){
 	    sendbuf = CONREF;
 	    sendto(sock,&sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&senderinfo,sizeof(senderinfo));
 	    //送信先の情報を出力
-	    printf("[NODE]sendto: %s  port: %d  send command: %s\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
+	    printf("[NODE]sendto: %s  port: %d  send command: %x\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
 	    return;
 
 	}
@@ -213,7 +214,7 @@ void node_connect_recv(sock_t *new_s){
 	sendto(sock,&sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&senderinfo,sizeof(senderinfo));
 
 	//送信先の情報を出力
-	printf("[NODE]sendto: %s  port: %d  send command: %s\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
+	printf("[NODE]sendto: %s  port: %d  send command: %x\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
     }else{	//子ノードがいっぱいで接続できない
 	
 	//UDPで返信
@@ -221,7 +222,7 @@ void node_connect_recv(sock_t *new_s){
 	sendto(sock,&sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&senderinfo,sizeof(senderinfo));
 
 	//送信先の情報を出力
-	printf("[NODE]sendto: %s  port: %d  send command: %s\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
+	printf("[NODE]sendto: %s  port: %d  send command: %x\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
     }
 
 	print_connect_node();
@@ -387,15 +388,16 @@ void query_key_push(sock_t *new_s){
 
     for(i=0;i<MAX_KEY;i++){
 
-	if(node.known_key[i] == 0){
+	if(node.known_key[i][0] == 0x00){
 	    continue;
-	}
+	}else{
 
-	sprintf(sendbuf,"%c%s",head,node.known_key[i]);
-	n = sendto(sock,sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
-	if(n < 1){
-	    perror("sendto");
-	    return;
+	    sprintf(sendbuf,"%c%s",head,node.known_key[i]);
+	    n = sendto(sock,sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
+	    if(n < 1){
+		perror("sendto");
+		return;
+	    }
 	}
     }
     
