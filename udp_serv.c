@@ -150,24 +150,22 @@ int start_p2p(){
 	new_s.senderinfo = senderinfo;
 	strcpy(new_s.recvbuf,recvbuf);
 
+	printf("[MAIN THREAD] recieve packet\n");
+	printf("recvfrom: %s  port: %d  recv command: %s\n",senderstr,ntohs(senderinfo.sin_port),recvbuf);
 
-	if(strcmp(recvbuf,CON) == 0){
-	    printf("[MAIN THREAD] recieve packet\n");
-	    printf("recvfrom: %s  port: %d  recv command: %s\n",senderstr,ntohs(senderinfo.sin_port),recvbuf);
-
-	    if(recvbuf[0] == CON){
-		pthread_create(&worker,NULL,(void *)node_connect_recv,(void *)&new_s);
-		printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
-	    }else if(recvbuf[0] == ACK){
-		printf("[ALL]recv ACK");
-	    }else if(recvbuf[0] == PKEY){
-		pthread_create(&worker,NULL,(void *)query_key_receive,(void *)&new_s);
-		printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
-	    }else{
-		printf("UNKNOWN COMMAND");
-	    }
-
+	if(recvbuf[0] == CON){
+	    pthread_create(&worker,NULL,(void *)node_connect_recv,(void *)&new_s);
+	    printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
+	}else if(recvbuf[0] == ACK){
+	    printf("[ALL]recv ACK");
+	}else if(recvbuf[0] == PKEY){
+	    pthread_create(&worker,NULL,(void *)query_key_receive,(void *)&new_s);
+	    printf("[MAIN THREAD] CREATE THREAD [%u]\n",worker);
+	}else{
+	    printf("UNKNOWN COMMAND");
 	}
+
+
 
 
 	pthread_detach(worker);
