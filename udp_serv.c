@@ -16,11 +16,11 @@
 #define THREAD_NUM 2
 #define TARGET "192.168.1.2"
 
-#define CON 0x00	//CONNECT
-#define CONACK 0x10	//CONNECT ACK
-#define CONREF 0x20	//CONNECT REFUSE
-#define ACK 0x30	//ACK
-#define PKEY 0x40	//PUSHKEY
+#define CON 0x10	//CONNECT
+#define CONACK 0x20	//CONNECT ACK
+#define CONREF 0x30	//CONNECT REFUSE
+#define ACK 0x40	//ACK
+#define PKEY 0x50	//PUSHKEY
 
 
 typedef struct{
