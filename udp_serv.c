@@ -65,15 +65,7 @@ void print_key();
 
 int main(int argc,char *argv[]){
 
-    int flag;
 
-    flag = atoi(argv[1]);
-    printf("%d\n",flag);
-
-    if(flag == 1){
-	first_node = 0;
-	printf("first\n");
-    }
     reset_node();
     start_p2p();
 
