@@ -324,7 +324,7 @@ void node_connect_parent(sock_t *new_s){
 		    if(strcmp(node.parent[i],"nothing") == 0 && flag != 0){
 			sprintf(node.parent[i],target_ip);
 
-			sendbuf == ACK;
+			sendbuf = ACK;
 			n = sendto(sock,&sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&addr,sizeof(addr));
 			printf("\n[NODE}send ACK [IP:%s]\n",target_ip);
 			flag = 0;
