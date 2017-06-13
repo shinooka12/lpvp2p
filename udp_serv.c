@@ -335,6 +335,7 @@ void node_connect_parent(sock_t *new_s){
 
 			printf("[QUERY SESSION START]");
 			pthread_create(&worker,NULL,(void *)query_key_push,(void *)&new_s1);
+			pthread_detach(worker);
 		    }
 		}
 	    }else if(recvbuf[0] == CONREF){
@@ -345,7 +346,6 @@ void node_connect_parent(sock_t *new_s){
 	}
 
 	print_connect_node();
-	pthread_detach(worker);
 	sleep(10); //Dosにならないようsleep
 
     }
