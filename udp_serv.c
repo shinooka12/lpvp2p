@@ -557,7 +557,7 @@ void node_recieve_other_node_info(sock_t *new_s){
 
     inet_ntop(AF_INET,&senderinfo.sin_addr,senderstr,sizeof(senderstr));
 
-
+//whileで回してないのでノード情報は1つまでしか受け取れない（今のところ）
     recvfrom(sock,recvbuf,sizeof(recvbuf),0,(struct sockaddr *)&senderinfo,&senderinfolen);
 
     if(recvbuf[0] == OTHERINFO){
