@@ -105,6 +105,8 @@ void reset_node(){
     for(i=0;i<KNOWN_MAX;i++){
 	list[i].node_ip[0]=0x00;
     }
+    sprintf(list[0].node_ip,"192.168.1.10");
+    sprintf(list[1].node_ip,"192.168.1.11");
 
 }
 
@@ -270,6 +272,7 @@ void node_connect_parent(sock_t *new_s){
     int i;
     int n;
     int flag;
+    int count;
     //タイマ割り込みを発生されるための変数
     fd_set fds,readfds;
     int maxfd;
@@ -277,16 +280,20 @@ void node_connect_parent(sock_t *new_s){
     struct timeval tv;
 
     sock = socket(AF_INET,SOCK_DGRAM,0);
+    count = 0;
 
     while(1){
 
 	if(first_connect == -1){
 	    strcpy(target_ip,TARGET);
 	    first_connect = 0;
+	}else if(list[0].node_ip != 0x00 && count < KNOWN_MAX){
+	    strcpy(target_ip,list[count].node_ip);
+	    count++;
 	}else{
-	    memset(target_ip,0,sizeof(target_ip));
 	    strcpy(target_ip,TARGET);
 	}
+	    
 
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(SERVICE_PORT);
