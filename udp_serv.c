@@ -354,7 +354,7 @@ void node_connect_parent(sock_t *new_s){
 			sprintf(node.parent[i],target_ip);
 
 			sendbuf = ACK;
-			n = sendto(sock,&sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&addr,sizeof(addr));
+			n = sendto(sock,&sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&senderinfo,sizeof(senderinfo));
 			printf("\n[NODE}send ACK [IP:%s]\n",target_ip);
 			flag = 0;
 
@@ -401,6 +401,7 @@ void query_key_push(sock_t *new_s){
     int sock;
     struct sockaddr_in addr;
     struct sockaddr_in senderinfo;
+    char senderstr[BUFSIZE];
     char sendbuf[BUFSIZE];
     char head;
     char all_key[BUFSIZE];
@@ -423,6 +424,8 @@ void query_key_push(sock_t *new_s){
 		perror("sendto");
 		return;
 	    }
+	    inet_ntop(AF_INET,&senderinfo.sin_addr,senderstr,sizeof(senderstr));
+	    printf("[NODE]sendto: %s  port: %d  send command: %s\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
 	}
     }
 
@@ -466,11 +469,12 @@ void query_key_receive(sock_t *new_s){
     }
 
     sendbuf = ACK;
-    n = sendto(sock,&sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&addr,sizeof(addr));
+    n=sendto(sock,&sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&senderinfo,sizeof(senderinfo));
     if(n < 1){
 	perror("sendto");
 	return;
     }
+    printf("[NODE]sendto: %s  port: %d  send command: %x\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
 
     print_key();
 
