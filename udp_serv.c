@@ -452,7 +452,7 @@ void query_key_receive(sock_t *new_s){
     inet_ntop(AF_INET,&senderinfo.sin_addr,senderstr,sizeof(senderstr));
 
     //headerの削除
-    for(i=1;i<sizeof(BUFSIZE);i++){
+    for(i=1;i<sizeof(recvbuf);i++){
 	buf[i-1] = recvbuf[i];
     }
 
@@ -558,7 +558,7 @@ void node_recieve_other_node_info(sock_t *new_s){
 
     if(recvbuf[0] == OTHERINFO){
 
-	for(i=1;i<sizeof(BUFSIZE);i++){
+	for(i=1;i<sizeof(recvbuf);i++){
 	    buf[i-1] = recvbuf[i];
 	}
 
