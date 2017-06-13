@@ -279,7 +279,6 @@ void node_connect_parent(sock_t *new_s){
 
 	    printf("[NODE]CONNECT MAX PARENT. CANCEL CONNECT\n");
 	    node.parent_flag = 0;
-	    close(sock);
 	    return;
 	}
 
@@ -326,7 +325,7 @@ void node_connect_parent(sock_t *new_s){
 			sprintf(node.parent[i],target_ip);
 
 			sendbuf == ACK;
-			n = sendto(sock,&sendbuf,sizeof(sendbuf)-1,0,(struct sockaddr *)&addr,sizeof(addr));
+			n = sendto(sock,&sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&addr,sizeof(addr));
 			printf("\n[NODE}send ACK [IP:%s]\n",target_ip);
 			flag = 0;
 
@@ -452,7 +451,7 @@ void print_key(){
 
     int i;
 
-    printf("*******PRINT KEY*********");
+    printf("*******PRINT KEY*********\n");
     for(i=0;i<MAX_KEY;i++){
 	if(node.known_key[i] == 0){
 	    continue;
