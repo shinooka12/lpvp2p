@@ -429,7 +429,7 @@ void query_key_push(sock_t *new_s){
 	}else{
 
 	    sprintf(sendbuf,"%c%s",head,node.known_key[i]);
-	    n = sendto(sock,sendbuf,malloc_usable_size(sendbuf),0,(struct sockaddr *)&addr,sizeof(addr));
+	    n = sendto(sock,sendbuf,strlen(sendbuf)+1,0,(struct sockaddr *)&addr,sizeof(addr));
 	    if(n < 1){
 		perror("sendto");
 		return;
