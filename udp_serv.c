@@ -1,4 +1,5 @@
 #include<stdio.h>
+#include<stdlib.h>
 #include<unistd.h>
 #include<string.h>
 #include<sys/types.h>
@@ -409,7 +410,7 @@ void query_key_push(sock_t *new_s){
     struct sockaddr_in addr;
     struct sockaddr_in senderinfo;
     char senderstr[BUFSIZE];
-    char sendbuf[BUFSIZE];
+    char *sendbuf;
     char head;
     char all_key[BUFSIZE];
     int i,n;
@@ -419,6 +420,7 @@ void query_key_push(sock_t *new_s){
     senderinfo = new_s->senderinfo;
     head = PKEY;
 
+    sendbuf = (char *)malloc(BUFSIZE);
     for(i=0;i<MAX_KEY;i++){
 
 	if(node.known_key[i][0] == 0x00){
