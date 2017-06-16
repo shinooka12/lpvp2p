@@ -405,6 +405,118 @@ void print_connect_node(){
 
 }
 
+void node_send_other_node_info(sock_t *new_s){
+
+    int sock;
+    sock_t new_s1;
+    int i;
+    int n;
+    struct sockaddr_in addr;
+    struct sockaddr_in senderinfo;
+    char head;
+    char sendbuf[BUFSIZE];
+    char senderstr[BUFSIZE];
+
+    sock = new_s->s;
+    addr = new_s->addr;
+    senderinfo = new_s->senderinfo;
+
+    inet_ntop(AF_INET,&senderinfo.sin_addr,senderstr,sizeof(senderstr));
+
+    for(i=0;i<KNOWN_MAX;i++){
+	if(list[i].node_ip[0]==0x00){
+	    continue;
+	}else{
+	    head = OTHERINFO;
+	    sprintf(sendbuf,"%c%s",head,list[i].node_ip);
+	    sendto(sock,&sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&senderinfo,sizeof(senderinfo));
+	    if(n < 1){
+		perror("sendto");
+		return;
+	    }
+	    printf("[NODE]sendto: %s  port: %d  send command: %x\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
+	}
+    }
+
+    return;
+
+}
+
+
+void node_recieve_other_node_info(sock_t *new_s){
+
+
+    int sock;
+    sock_t new_s1;
+    int i;
+    int n;
+    struct sockaddr_in addr;
+    struct sockaddr_in senderinfo;
+    socklen_t senderinfolen;
+    char head;
+    char sendbuf[BUFSIZE];
+    char senderstr[BUFSIZE];
+    char recvbuf[BUFSIZE];
+    char buf[BUFSIZE];
+
+    sock = new_s->s;
+    addr = new_s->addr;
+    senderinfo = new_s->senderinfo;
+    senderinfolen = sizeof(senderinfo);
+
+    inet_ntop(AF_INET,&senderinfo.sin_addr,senderstr,sizeof(senderstr));
+
+    //whileで回してないのでノード情報は1つまでしか受け取れない（今のところ）
+    recvfrom(sock,recvbuf,sizeof(recvbuf),0,(struct sockaddr *)&senderinfo,&senderinfolen);
+
+    if(recvbuf[0] == OTHERINFO){
+
+	for(i=1;i<sizeof(recvbuf);i++){
+	    buf[i-1] = recvbuf[i];
+	}
+
+	for(i=0;i<KNOWN_MAX;i++){
+	    if(list[i].node_ip[0] == 0x00){
+		strcpy(list[i].node_ip,buf);
+		break;
+	    }else{
+		continue;
+	    }
+	}
+
+	head = ACK;
+	n = sendto(sock,&head,sizeof(head),0,(struct sockaddr *)&addr,sizeof(addr));
+	if(n < 1){
+	    perror("sendto");
+	    return;
+	}
+
+    print_node_list();
+
+    }else{
+	printf("[NODE]UNKNOWN COMMAND: recieve other node\n");
+    }
+
+    return;
+}
+
+
+void print_node_list(){
+
+
+    int i;
+
+    printf("*******PRINT NODE LIST*********\n");
+    for(i=0;i<KNOWN_MAX;i++){
+	if(list[i].node_ip[0] == 0x00){
+	    continue;
+	}else{
+	    printf("NODE[%d] : %s\n",i,list[i].node_ip);
+	}
+    }
+
+}
+
 void query_key_push(sock_t *new_s){
 
     int sock;
@@ -505,118 +617,6 @@ void print_key(){
 
 }
 
-
-void node_send_other_node_info(sock_t *new_s){
-
-    int sock;
-    sock_t new_s1;
-    int i;
-    int n;
-    struct sockaddr_in addr;
-    struct sockaddr_in senderinfo;
-    char head;
-    char sendbuf[BUFSIZE];
-    char senderstr[BUFSIZE];
-
-    sock = new_s->s;
-    addr = new_s->addr;
-    senderinfo = new_s->senderinfo;
-
-    inet_ntop(AF_INET,&senderinfo.sin_addr,senderstr,sizeof(senderstr));
-
-    for(i=0;i<KNOWN_MAX;i++){
-	if(list[i].node_ip[0]==0x00){
-	    continue;
-	}else{
-	    head = OTHERINFO;
-	    sprintf(sendbuf,"%c%s",head,list[i].node_ip);
-	    sendto(sock,&sendbuf,sizeof(sendbuf),0,(struct sockaddr *)&senderinfo,sizeof(senderinfo));
-	    if(n < 1){
-		perror("sendto");
-		return;
-	    }
-	    printf("[NODE]sendto: %s  port: %d  send command: %x\n",senderstr,ntohs(senderinfo.sin_port),sendbuf);
-	}
-    }
-
-    return;
-
-}
-
-
-void node_recieve_other_node_info(sock_t *new_s){
-
-
-    int sock;
-    sock_t new_s1;
-    int i;
-    int n;
-    struct sockaddr_in addr;
-    struct sockaddr_in senderinfo;
-    socklen_t senderinfolen;
-    char head;
-    char sendbuf[BUFSIZE];
-    char senderstr[BUFSIZE];
-    char recvbuf[BUFSIZE];
-    char buf[BUFSIZE];
-
-    sock = new_s->s;
-    addr = new_s->addr;
-    senderinfo = new_s->senderinfo;
-    senderinfolen = sizeof(senderinfo);
-
-    inet_ntop(AF_INET,&senderinfo.sin_addr,senderstr,sizeof(senderstr));
-
-//whileで回してないのでノード情報は1つまでしか受け取れない（今のところ）
-    recvfrom(sock,recvbuf,sizeof(recvbuf),0,(struct sockaddr *)&senderinfo,&senderinfolen);
-
-    if(recvbuf[0] == OTHERINFO){
-
-	for(i=1;i<sizeof(recvbuf);i++){
-	    buf[i-1] = recvbuf[i];
-	}
-
-	for(i=0;i<KNOWN_MAX;i++){
-	    if(list[i].node_ip[0] == 0x00){
-		strcpy(list[i].node_ip,buf);
-		break;
-	    }else{
-		continue;
-	    }
-	}
-
-	head = ACK;
-	n = sendto(sock,&head,sizeof(head),0,(struct sockaddr *)&addr,sizeof(addr));
-	if(n < 1){
-	    perror("sendto");
-	    return;
-	}
-
-    print_node_list();
-
-    }else{
-	printf("[NODE]UNKNOWN COMMAND: recieve other node\n");
-    }
-
-    return;
-}
-
-
-void print_node_list(){
-
-
-    int i;
-
-    printf("*******PRINT NODE LIST*********\n");
-    for(i=0;i<KNOWN_MAX;i++){
-	if(list[i].node_ip[0] == 0x00){
-	    continue;
-	}else{
-	    printf("NODE[%d] : %s\n",i,list[i].node_ip);
-	}
-    }
-
-}
 
 
 
